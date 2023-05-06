@@ -24,6 +24,12 @@ then
     print_warning "${SCRIPT_NAME}" "iptables-save is not installed, no backups available"
 fi
 
+IPTABLES_RESTORE="$(which iptables-restore)"
+if [[ -z "${IPTABLES_RESTORE}" ]];
+then
+    print_warning "${SCRIPT_NAME}" "iptables-restore is not installed, no restore available"
+fi
+
 IP_SET="$(which ipset)"
 if [[ -z "${IPTABLES_SAVE}" ]];
 then
@@ -51,15 +57,12 @@ function banner () {
 }
 
 function save_table () {
-    if [[ ! -z "${IPTABLES_SAVE}" ]];
-    then
-        print_info "${SCRIPT_NAME}" "Backing up current rules"
-        ${IPTABLES_SAVE} > "${TIMESTAMP}_iptables.bak"
-    fi
-    print_good "${SCRIPT_NAME}" "[+] Saved iptables rules"
+    print_info "${SCRIPT_NAME}" "[+] Backing up current rules"
+    ${IPTABLES_SAVE} > "${TIMESTAMP}_iptables.bak"
 }
 
 function restore_table () {
+    print_good "${SCRIPT_NAME}" "[+] Restoring iptables rules"
     latest_backup=$(find . -name '*_iptables.bak' | awk -F'_' '{print substr($1,3)}' | sort -rn | head -n 1)
     if [[ ! -z "${latest_backup}" ]];
     then
@@ -71,9 +74,6 @@ function restore_table () {
             *)
             ;;
         esac
-        echo 0
-    else
-        echo 1
     fi
 }
 
@@ -86,16 +86,15 @@ function reset_table () {
     ${IPTABLES} -t mangle -F
     ${IPTABLES} -F
     ${IPTABLES} -X
-    print_good "${SCRIPT_NAME}" "[+] Reset done"
 }
 
 function block_prerouting ( ) {
-    print_info "${SCRIPT_NAME}" "[ + ] Prerouting blocking"
-    print_info "${SCRIPT_NAME}" "[ + ] Block INVALID packets"
+    print_info "${SCRIPT_NAME}" "[+] Prerouting blocking"
+    print_info "${SCRIPT_NAME}" "[+] Block INVALID packets"
     ${IPTABLES} -t mangle -A PREROUTING -m conntrack --ctstate INVALID -j DROP
-    print_info "${SCRIPT_NAME}" "[ + ] Block weird MSS valued packets"
+    print_info "${SCRIPT_NAME}" "[+] Block weird MSS valued packets"
     ${IPTABLES} -t mangle -A PREROUTING -p tcp -m conntrack --ctstate NEW -m tcpmss ! --mss 536:65535 -j DROP
-    print_info "${SCRIPT_NAME}" "[ + ] Blocking private IP address ranges"
+    print_info "${SCRIPT_NAME}" "[+] Blocking private IP address ranges"
     ${IPTABLES} -t mangle -A PREROUTING -s 224.0.0.0/3 -j DROP
     ${IPTABLES} -t mangle -A PREROUTING -s 169.254.0.0/16 -j DROP
     ${IPTABLES} -t mangle -A PREROUTING -s 172.16.0.0/12 -j DROP
@@ -105,7 +104,7 @@ function block_prerouting ( ) {
     ${IPTABLES} -t mangle -A PREROUTING -s 0.0.0.0/8 -j DROP
     ${IPTABLES} -t mangle -A PREROUTING -s 240.0.0.0/5 -j DROP
     ${IPTABLES} -t mangle -A PREROUTING -s 127.0.0.0/8 -i lo -j DROP
-    print_info "${SCRIPT_NAME}"  "[ + ] Block bogus packets"
+    print_info "${SCRIPT_NAME}"  "[+] Block bogus packets"
     ${IPTABLES} -t mangle -A PREROUTING -p tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG NONE -j DROP
     ${IPTABLES} -t mangle -A PREROUTING -p tcp --tcp-flags FIN,SYN FIN,SYN -j DROP
     ${IPTABLES} -t mangle -A PREROUTING -p tcp --tcp-flags SYN,RST SYN,RST -j DROP
@@ -128,13 +127,11 @@ function block_prerouting ( ) {
     ${IPTABLES} -A INPUT -p tcp -m tcp --tcp-flags ACK,FIN FIN -j DROP
     ${IPTABLES} -A INPUT -p tcp -m tcp --tcp-flags ACK,PSH PSH -j DROP
     ${IPTABLES} -A INPUT -p tcp -m tcp --tcp-flags ACK,URG URG -j DROP
-    print_good "${SCRIPT_NAME}" "[+] block prerouting done"
 }
 
 function limit_connections ( ) {
     print_info "${SCRIPT_NAME}" "[+] Limiting connections per IP"
     ${IPTABLES} -A INPUT -p tcp --syn -m multiport --dports ${1} -m connlimit --connlimit-above 5 -j REJECT --reject-with tcp-reset
-    print_good "${SCRIPT_NAME}" "[+] done limiting connections"
 }
 
 function enable_logging ( ) {
@@ -145,7 +142,6 @@ function enable_logging ( ) {
     ${IPTABLES} -N f2b-sshd
     ${IPTABLES} -A INPUT -p tcp -m multiport --dports ${SSH_PORT} -j f2b-sshd
     ${IPTABLES} -A f2b-sshd -j RETURN
-    print_good "${SCRIPT_NAME}" "[+] Done with creating logging"
 }
 
 function allow_connections ( ) {
@@ -155,7 +151,6 @@ function allow_connections ( ) {
     ${IPTABLES} -A INPUT -i ${INTERFACE} -p tcp -m multiport --dports ${1} -m state --state ESTABLISHED -j ACCEPT
     ${IPTABLES} -A OUTPUT -o ${INTERFACE} -p tcp -m multiport --dports ${1} -m state --state NEW,ESTABLISHED -j ACCEPT
     ${IPTABLES} -A OUTPUT -o ${INTERFACE} -p tcp -m multiport --dports ${1} -m state --state ESTABLISHED -j ACCEPT
-    print_good "${SCRIPT_NAME}" "[+] Done allowing connections"
 }
 
 function disable_icmp ( ) {
@@ -170,13 +165,11 @@ function disable_icmp ( ) {
         ${IPTABLES} -A OUTPUT -p icmp --icmp-type echo-request -j ACCEPT
         ${IPTABLES} -A INPUT -p icmp --icmp-type echo-reply -j ACCEPT
     fi
-    print_good "${SCRIPT_NAME}" "[+] Done with icmp enable / disable"
 }
 
 function default_drop ( ) {
     print_info "${SCRIPT_NAME}" "[+] Default to DROP"
     ${IPTABLES} -A INPUT -j DROP
-    print_good "${SCRIPT_NAME}" "[+] Done with default drop"
 }
 
 function restart_services ( ) {
@@ -185,7 +178,6 @@ function restart_services ( ) {
     systemctl restart fail2ban.service
     systemctl status psad.service
     systemctl status fail2ban.service
-    print_good "${SCRIPT_NAME}" "[+] Done with restarting services"
 }
 
 function setup_ipset_rules () {
@@ -198,7 +190,6 @@ function setup_ipset_rules () {
         ipset add ipsum $ip
     done
     ${IPTABLES} -I INPUT -m set --match-set ipsum src -j DROP
-    print_good "${SCRIPT_NAME}" "[+] Done with dropping IPSET IPs"
 }
 
 function list_rules ( ) {
@@ -224,10 +215,19 @@ fi
 
 banner
 print_warning "${SCRIPT_NAME}" "[+] Using iptables version: $(${IPTABLES} --version)"
-#restore_table
-save_table
+#if [[ ! -z "${IPTABLES_RESTORE}" ]];
+#then
+    #restore_table
+#fi
+if [[ ! -z "${IPTABLES_SAVE}" ]];
+then
+    save_table
+fi
 reset_table
-setup_ipset_rules
+if [[ ! -z "${IP_SET}" ]];
+then
+    setup_ipset_rules
+fi
 disable_icmp ${DISABLE_ICMP}
 block_prerouting
 enable_logging
