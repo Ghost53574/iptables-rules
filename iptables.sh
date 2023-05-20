@@ -280,6 +280,8 @@ function enable_logging () {
 }
 
 function allow_connections () {
+    print_info "${SCRIPT_NAME}" "[+] Allowing current connections"
+    ${IPTABLES} -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
     print_info "${SCRIPT_NAME}" "[+] Allowing connection to services"
     ${IPTABLES} -A INPUT -i lo -j ACCEPT -m comment --comment 'Allow connections on local interface: lo'
     ${IPTABLES} -A INPUT -i ${INTERFACE} -p tcp -m multiport --dports ${1} -m state --state NEW,ESTABLISHED -j ACCEPT
