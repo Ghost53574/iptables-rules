@@ -8,52 +8,117 @@ SCRIPT_NAME="iptables"
 # Change this to suit your needs
 INTERFACE="eth0"
 DISABLE_ICMP=1
+ENABLE_TCPSTACK_PROT=1
+ENABLE_PORT_KNOCKING=1
 SSH_PORT=65534
+GATE1=4343
+GATE2=6969
+GATE3=65500
 ARGUMENTS=$@
+
+MODPROBE="$(which modprobe)"
+DEPMOD="$(which depmod)"
 
 IPTABLES="$(which iptables)"
 if [[ -z "${IPTABLES}" ]];
 then
-    print_error "${SCRIPT_NAME}" "iptables is not installed"
+    print_error "${SCRIPT_NAME}" "[!] iptables is not installed"
     exit 1
 fi
 
 IPTABLES_SAVE="$(which iptables-save)"
 if [[ -z "${IPTABLES_SAVE}" ]];
 then
-    print_warning "${SCRIPT_NAME}" "iptables-save is not installed, no backups available"
+    print_warning "${SCRIPT_NAME}" "[!] iptables-save is not installed, no backups available"
 fi
 
 IPTABLES_RESTORE="$(which iptables-restore)"
 if [[ -z "${IPTABLES_RESTORE}" ]];
 then
-    print_warning "${SCRIPT_NAME}" "iptables-restore is not installed, no restore available"
+    print_warning "${SCRIPT_NAME}" "[!] iptables-restore is not installed, no restore available"
 fi
 
 IP_SET="$(which ipset)"
 if [[ -z "${IPTABLES_SAVE}" ]];
 then
-    print_warning "${SCRIPT_NAME}" "ipset is not installed"
+    print_warning "${SCRIPT_NAME}" "[!] ipset is not installed"
+fi
+
+PSAD=$(which psad)
+if [[ -z "${PSAD}" ]];
+then
+    print_warning "${SCRIPT_NAME}" "[!] psad is not installed"
+fi
+
+FAIL2BAN=$(which fail2ban-server)
+if [[ -z "${FAIL2BAN}" ]];
+then
+    print_warning "${SCRIPT_NAME}" "[!] fail2ban is not installed"
+fi
+
+FWSNORT=$(which fwsnort)
+if [[ -z "${FWSNORT}" ]];
+then
+    print_warning "${SCRIPT_NAME}" "[!] fwsnort is not installed"
+fi
+
+if [[ -z "${IP_SET}" || -z "${PSAD}" || -z "${FAIL2BAN}" || -z "${FWSNORT}" ]];
+then
+    read -p "Do you want to install ipset, psad, fail2ban and fwsnort?" INSTALL
+    case "${INSTALL}" in
+        "Y"|"y")
+            install_pkgs
+            ;;
+        *)
+            ;;
+    esac
+    IP_SET="$(which ipset)"
+    PSAD=$(which psad)
+    FAIL2BAN=$(which fail2ban-server)
+    FWSNORT=$(which fwsnort)
 fi
 
 function banner () {
-    echo """
-██╗██████╗ ████████╗ █████╗ ██████╗ ██╗     ███████╗███████╗
-██║██╔══██╗╚══██╔══╝██╔══██╗██╔══██╗██║     ██╔════╝██╔════╝
-██║██████╔╝   ██║   ███████║██████╔╝██║     █████╗  ███████╗
-██║██╔═══╝    ██║   ██╔══██║██╔══██╗██║     ██╔══╝  ╚════██║
-██║██║        ██║   ██║  ██║██████╔╝███████╗███████╗███████║
-╚═╝╚═╝        ╚═╝   ╚═╝  ╚═╝╚═════╝ ╚══════╝╚══════╝╚══════╝
-"""
+    echo -e """${BOLD_WHITE}
+                                       %                                       
+                          &/            %&@*          **                        
+                          &#,           .             *#.                       
+                          .             ,                                       
+                          *           .@@@           .,                         
+                        .@@@/         @@@@@         %@@@                        
+                       #@@@@@&      .@@@@@@@       @@@@@@,                      
+                      .........    .@@@@@@@@@     .........                     
+                     %&&&&&&&&&&   @@@@@@@@@@&  .&&&&&&&&&&#                    
+                      @@&@@@@@@   #((((((((((((  /@&@@@@&@(                     
+                      @( @@@ .@   @@@@@@@@@@@@&  /@ /@@( @(                     
+                      @@@@@@@@@   @@@@@@@@@@@@&  /@@@@@@@@(                     
+                      @@@@ &@@@  .@*,@,,@,(&,#%, /@@@  @@@(                     
+                      @@@@@@@@@.@@@@@@@@@@@@@@@@@/@@@@@@@@(                     
+            #@&&@&&@&*@& @@@,*@.@@@@@@@@@@@@@@@@@/@.#@@%.@(&@@&@@&&@,           
+            #@@@@@@@@/@#,@@@,*@.@@@@    #   (@@@@/@,(@@#,@(@@@@@@@@@,           
+            #@@@@@@@@/@@@@@@@@@.@@@.    #    %@@@/@@@@@@@@(@@@@@@@@@,           
+            #@@@@@@@@/@@@@@@@@@.@@@     #    %@@@/@@@@@@@@(@@@@@@@@@,           
+            ,********.********* *****************.********.*********   
+            ██╗██████╗ ████████╗ █████╗ ██████╗ ██╗     ███████╗███████╗
+            ██║██╔══██╗╚══██╔══╝██╔══██╗██╔══██╗██║     ██╔════╝██╔════╝
+            ██║██████╔╝   ██║   ███████║██████╔╝██║     █████╗  ███████╗
+            ██║██╔═══╝    ██║   ██╔══██║██╔══██╗██║     ██╔══╝  ╚════██║
+            ██║██║        ██║   ██║  ██║██████╔╝███████╗███████╗███████║
+            ╚═╝╚═╝        ╚═╝   ╚═╝  ╚═╝╚═════╝ ╚══════╝╚══════╝╚══════╝
+                              \"Fuck em...\" - c0z
+${NC}"""
+    print_menu "[-]" "Booting Up Menu..."
+    sleep 1
+    print_menu "[-]" "Loading Menu [${LIGHTGREEN}########               ]${LIGHTRED}(38%)"
+    sleep 1
+    print_menu "[-]" "Loading Menu [${LIGHTGREEN}###################    ]${LIGHTRED}(80%)"
+    sleep 1
+    print_menu "[-]" "Loading Menu [${LIGHTCYAN}########################]${LIGHTRED}(100%)"
+    sleep 1
+}
 
-    print_menu "[ - ]" "Booting Up Menu.."
-    sleep 1
-    print_menu "[ - ]" "Loading Menu [${LIGHTGREEN}########                 ${LIGHTRED}(38%)"
-    sleep 1
-    print_menu "[ - ]" "Loading Menu [${LIGHTGREEN}###################      ${LIGHTRED}(80%)"
-    sleep 1
-    print_menu "[ - ]" "Loading Menu [${LIGHTCYAN}######################## ${LIGHTRED}(100%)"
-    sleep 1
+function update_psad_rules () {
+    ${PSAD} --sig-update
 }
 
 function save_table () {
@@ -70,11 +135,33 @@ function restore_table () {
         case "${RESTORE}" in
             "y"|"Y")
                 ${IPTABLES}-restore "${latest_backup}_iptables.bak"
+                return 0
             ;;
             *)
             ;;
         esac
     fi
+    return 1
+}
+
+function load_modules () {
+    print_info "${SCRIPT_NAME}" "[+] Loading modules"
+    ${DEPMOD} -a
+    ${MODPROBE} nf_conntrack
+    ${MODPROBE} nf_nat
+    ${MODPROBE} nf_nat_ipv4
+    ${MODPROBE} nf_tables
+    ${MODPROBE} nft_chain_nat_ipv4
+}
+
+function enable_tcpstack_protections () {
+    echo 1 > /proc/sys/net/ipv4/tcp_syncookies
+    sed -i 's/#net.ipv4.conf.all.rp_filter=1/net.ipv4.conf.all.rp_filter=1/g' /etc/sysctl.conf
+}
+
+function disable_tcpstack_protections () {
+    echo 0 > /proc/sys/net/ipv4/tcp_syncookies
+    sed -i 's/net.ipv4.conf.all.rp_filter=1/#net.ipv4.conf.all.rp_filter=1/g' /etc/sysctl.conf
 }
 
 function reset_table () {
@@ -88,7 +175,55 @@ function reset_table () {
     ${IPTABLES} -X
 }
 
-function block_prerouting ( ) {
+function setup_jump_gates () {
+    print_info "${SCRIPT_NAME}" "[+] Setting up port knocking gates"
+    ${IPTABLES} -N KNOCKING
+    ${IPTABLES} -N GATE1
+    ${IPTABLES} -N GATE2
+    ${IPTABLES} -N GATE3
+    ${IPTABLES} -N PASSED
+}
+
+function setup_jump () {
+    ${IPTABLES} -A INPUT -j KNOCKING
+}
+
+function setup_gate1 () {
+    print_info "${SCRIPT_NAME}" "Setting up Gate1 table"
+    ${IPTABLES} -A GATE1 -p tcp --dport ${GATE1} -m recent --name AUTH1 --set -j DROP
+    ${IPTABLES} -A GATE1 -j DROP
+}
+
+function setup_gate2 () {
+    print_info "${SCRIPT_NAME}" "Setting up Gate2 table"
+    ${IPTABLES} -A GATE2 -m recent --name AUTH1 --remove
+    ${IPTABLES} -A GATE2 -p tcp --dport ${GATE2} -m recent --name AUTH2 --set -j DROP
+    ${IPTABLES} -A GATE2 -j GATE1
+}
+
+function setup_gate3 () {
+    print_info "${SCRIPT_NAME}" "Setting up Gate3 table"
+    ${IPTABLES} -A GATE3 -m recent --name AUTH2 --remove
+    ${IPTABLES} -A GATE3 -p tcp --dport ${GATE3} -m recent --name AUTH3 --set -j DROP
+    ${IPTABLES} -A GATE3 -j GATE1
+}
+
+function setup_passage () {
+    print_info "${SCRIPT_NAME}" "[+] Setting up passage table"
+    ${IPTABLES} -A PASSED -m recent --name AUTH3 --remove
+    ${IPTABLES} -A PASSED -p tcp --dport ${SSH_PORT} -j ACCEPT
+    ${IPTABLES} -A PASSED -j GATE1
+}
+
+function setup_knocking () {
+    print_info "${SCRIPT_NAME}" "[+] Setting up knocking table"
+    ${IPTABLES} -A KNOCKING -m recent --rcheck --seconds ${KNOCKING_TIME} --name AUTH3 -j PASSED
+    ${IPTABLES} -A KNOCKING -m recent --rcheck --seconds 10 --name AUTH2 -j GATE3
+    ${IPTABLES} -A KNOCKING -m recent --rcheck --seconds 10 --name AUTH1 -j GATE2
+    ${IPTABLES} -A KNOCKING -j GATE1
+}
+
+function block_prerouting () {
     print_info "${SCRIPT_NAME}" "[+] Prerouting blocking"
     print_info "${SCRIPT_NAME}" "[+] Block INVALID packets"
     ${IPTABLES} -t mangle -A PREROUTING -m conntrack --ctstate INVALID -j DROP
@@ -129,12 +264,12 @@ function block_prerouting ( ) {
     ${IPTABLES} -A INPUT -p tcp -m tcp --tcp-flags ACK,URG URG -j DROP
 }
 
-function limit_connections ( ) {
+function limit_connections () {
     print_info "${SCRIPT_NAME}" "[+] Limiting connections per IP"
     ${IPTABLES} -A INPUT -p tcp --syn -m multiport --dports ${1} -m connlimit --connlimit-above 5 -j REJECT --reject-with tcp-reset
 }
 
-function enable_logging ( ) {
+function enable_logging () {
     print_info "${SCRIPT_NAME}" "[+] Create logging for PSAD"
     ${IPTABLES} -A INPUT -j LOG
     ${IPTABLES} -A FORWARD -j LOG
@@ -144,7 +279,7 @@ function enable_logging ( ) {
     ${IPTABLES} -A f2b-sshd -j RETURN
 }
 
-function allow_connections ( ) {
+function allow_connections () {
     print_info "${SCRIPT_NAME}" "[+] Allowing connection to services"
     ${IPTABLES} -A INPUT -i lo -j ACCEPT -m comment --comment 'Allow connections on local interface: lo'
     ${IPTABLES} -A INPUT -i ${INTERFACE} -p tcp -m multiport --dports ${1} -m state --state NEW,ESTABLISHED -j ACCEPT
@@ -153,7 +288,7 @@ function allow_connections ( ) {
     ${IPTABLES} -A OUTPUT -o ${INTERFACE} -p tcp -m multiport --dports ${1} -m state --state ESTABLISHED -j ACCEPT
 }
 
-function disable_icmp ( ) {
+function disable_icmp () {
     if [[ "${1}" == "1" ]];
     then
         print_info "${SCRIPT_NAME}" "[+] Deny icmp requests from outside"
@@ -167,12 +302,12 @@ function disable_icmp ( ) {
     fi
 }
 
-function default_drop ( ) {
+function default_drop () {
     print_info "${SCRIPT_NAME}" "[+] Default to DROP"
     ${IPTABLES} -A INPUT -j DROP
 }
 
-function restart_services ( ) {
+function restart_services () {
     print_info "${SCRIPT_NAME}" "[+] Resetting services, psad & fail2ban"
     systemctl restart psad.service
     systemctl restart fail2ban.service
@@ -192,18 +327,23 @@ function setup_ipset_rules () {
     ${IPTABLES} -I INPUT -m set --match-set ipsum src -j DROP
 }
 
-function list_rules ( ) {
+function list_rules () {
     ${IPTABLES} -L
 }
 
-function usage ( ) {
-    echo -e """${WHITE}
+function install_pkgs () {
+    apt-get install iptables fail2ban psad fwsnort ipset -y
+}
+
+function usage () {
+    print_menu "" """${WHITE}
 ./iptables.sh [ports]
-- - - - - - - - - - - - -
-PORTS : Like 80,22,53
 
 Example:
 ./iptables.sh 21,22,80,443,8080,8443
+
+Note:
+Set your SSH Port in the script if using port knocking.
 ${NC}"""
 }
 
@@ -214,26 +354,62 @@ then
 fi
 
 banner
+print_info "${SCRIP_NAME}" "[!] Loading modules"
+load_modules
+if [[ "${ENABLE_TCPSTACK_PROT}" == 1 ]];
+then
+    print_info "${SCRIPT_NAME}" "[!] Enable TCP stack protections"
+    enable_tcpstack_protections
+else
+    print_info "${SCRIPT_NAME}" "[!] Disable TCP stack protections"
+    disable_tcpstack_protections
+fi
 print_warning "${SCRIPT_NAME}" "[+] Using iptables version: $(${IPTABLES} --version)"
-#if [[ ! -z "${IPTABLES_RESTORE}" ]];
-#then
-    #restore_table
-#fi
-if [[ ! -z "${IPTABLES_SAVE}" ]];
+if [[ ! -z "${IPTABLES_RESTORE}" ]];
 then
-    save_table
+    restore_table
+    if [[ "${?}" != "0" ]];
+    then
+        if [[ ! -z "${IPTABLES_SAVE}" ]];
+        then
+            save_table
+        fi
+        reset_table
+        if [[ "${ENABLE_PORT_KNOCKING}" == 1 ]];
+        then
+            print_info "${SCRIPT_NAME}" "[!] Port knocking enabled"
+            setup_jump_gates
+        fi
+        if [[ ! -z "${IP_SET}" ]];
+        then
+            setup_ipset_rules
+        fi
+        disable_icmp ${DISABLE_ICMP}
+        block_prerouting
+        limit_connections ${ARGUMENTS}
+        if [[ ! -z "${PSAD}" && ! -z "${FAIL2BAN}" ]];
+        then
+            enable_logging
+        fi
+        allow_connections ${ARGUMENTS}
+        if [[ "${ENABLE_PORT_KNOCKING}" == 1 ]];
+        then
+            jump_gate
+            setup_gate1
+            setup_gate2
+            setup_gate3
+            setup_passage
+            setup_knocking
+        fi
+        default_drop
+        if [[ ! -z "${PSAD}" && ! -z "${FAIL2BAN}" ]];
+        then
+            update_psad_rules
+            restart_services
+        fi
+        list_rules
+    fi
+    print_good "${SCRIPT_NAME}" "[+] Finished"
+else
+    print_error "${SCRIPT_NAME}" "One or more errors detected."
 fi
-reset_table
-if [[ ! -z "${IP_SET}" ]];
-then
-    setup_ipset_rules
-fi
-disable_icmp ${DISABLE_ICMP}
-block_prerouting
-enable_logging
-limit_connections ${ARGUMENTS}
-allow_connections ${ARGUMENTS}
-default_drop
-restart_services
-list_rules
-print_good "${SCRIPT_NAME}" "[+] Finished"
