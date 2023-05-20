@@ -109,9 +109,9 @@ function banner () {
 ${NC}"""
     print_menu "[-]" "Booting Up Menu..."
     sleep 1
-    print_menu "[-]" "Loading Menu [${LIGHTGREEN}########               ]${LIGHTRED}(38%)"
+    print_menu "[-]" "Loading Menu [${LIGHTGREEN}########                ]${LIGHTRED}(38%)"
     sleep 1
-    print_menu "[-]" "Loading Menu [${LIGHTGREEN}###################    ]${LIGHTRED}(80%)"
+    print_menu "[-]" "Loading Menu [${LIGHTGREEN}###################     ]${LIGHTRED}(80%)"
     sleep 1
     print_menu "[-]" "Loading Menu [${LIGHTCYAN}########################]${LIGHTRED}(100%)"
     sleep 1
