@@ -67,7 +67,7 @@ then
     read -p "Do you want to install ipset, psad, fail2ban and fwsnort?" INSTALL
     case "${INSTALL}" in
         "Y"|"y")
-            install_pkgs
+            apt-get install iptables fail2ban psad fwsnort ipset -y
             ;;
         *)
             ;;
@@ -107,14 +107,6 @@ function banner () {
             ╚═╝╚═╝        ╚═╝   ╚═╝  ╚═╝╚═════╝ ╚══════╝╚══════╝╚══════╝
                               \"Fuck em...\" - c0z
 ${NC}"""
-    print_menu "[-]" "Booting Up Menu..."
-    sleep 1
-    print_menu "[-]" "Loading Menu [${LIGHTGREEN}########                ]${LIGHTRED}(38%)"
-    sleep 1
-    print_menu "[-]" "Loading Menu [${LIGHTGREEN}###################     ]${LIGHTRED}(80%)"
-    sleep 1
-    print_menu "[-]" "Loading Menu [${LIGHTCYAN}########################]${LIGHTRED}(100%)"
-    sleep 1
 }
 
 function update_psad_rules () {
@@ -332,10 +324,6 @@ function setup_ipset_rules () {
 
 function list_rules () {
     ${IPTABLES} -L
-}
-
-function install_pkgs () {
-    apt-get install iptables fail2ban psad fwsnort ipset -y
 }
 
 function usage () {
