@@ -274,14 +274,14 @@ function enable_logging () {
 function allow_connections () {
     print_info "${SCRIPT_NAME}" "[+] Allowing current connections"
     ${IPTABLES} -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-    print_info "${SCRIPT_NAME}" "[+] Allowing connection to services"
+    print_info "${SCRIPT_NAME}" "[+] Allowing connection to localhost"
     ${IPTABLES} -A INPUT -i lo -j ACCEPT -m comment --comment 'Allow connections on local interface: lo'
     print_info "${SCRIPT_NAME}" "[+] Allowing inbound connections on: ${1}"
     ${IPTABLES} -A INPUT -i ${INTERFACE} -p tcp -m multiport --dports ${1} -m state --state NEW,ESTABLISHED -j ACCEPT
-    ${IPTABLES} -A OUTPUT -i ${INTERFACE} -p tcp -m multiport --sports ${1} -m state --state ESTABLISHED -j ACCEPT
+    ${IPTABLES} -A OUTPUT -o ${INTERFACE} -p tcp -m multiport --sports ${1} -m state --state ESTABLISHED -j ACCEPT
     print_info "${SCRIPT_NAME}" "[+] Allowing outbound connections on: ${1}"
     ${IPTABLES} -A OUTPUT -o ${INTERFACE} -p tcp -m multiport --dports ${1} -m state --state NEW,ESTABLISHED -j ACCEPT
-    ${IPTABLES} -A INPUT -o ${INTERFACE} -p tcp -m multiport --sports ${1} -m state --state ESTABLISHED -j ACCEPT
+    ${IPTABLES} -A INPUT -i ${INTERFACE} -p tcp -m multiport --sports ${1} -m state --state ESTABLISHED -j ACCEPT
 }
 
 function disable_icmp () {
