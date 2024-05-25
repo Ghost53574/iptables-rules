@@ -284,10 +284,12 @@ function allow_connections () {
     ${IPTABLES} -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
     print_info "${SCRIPT_NAME}" "[+] Allowing connection to services"
     ${IPTABLES} -A INPUT -i lo -j ACCEPT -m comment --comment 'Allow connections on local interface: lo'
+    print_info "${SCRIPT_NAME}" "[+] Allowing inbound connections on: ${1}"
     ${IPTABLES} -A INPUT -i ${INTERFACE} -p tcp -m multiport --dports ${1} -m state --state NEW,ESTABLISHED -j ACCEPT
-    ${IPTABLES} -A INPUT -i ${INTERFACE} -p tcp -m multiport --dports ${1} -m state --state ESTABLISHED -j ACCEPT
+    ${IPTABLES} -A OUTPUT -i ${INTERFACE} -p tcp -m multiport --sports ${1} -m state --state ESTABLISHED -j ACCEPT
+    print_info "${SCRIPT_NAME}" "[+] Allowing outbound connections on: ${1}"
     ${IPTABLES} -A OUTPUT -o ${INTERFACE} -p tcp -m multiport --dports ${1} -m state --state NEW,ESTABLISHED -j ACCEPT
-    ${IPTABLES} -A OUTPUT -o ${INTERFACE} -p tcp -m multiport --dports ${1} -m state --state ESTABLISHED -j ACCEPT
+    ${IPTABLES} -A INPUT -o ${INTERFACE} -p tcp -m multiport --sports ${1} -m state --state ESTABLISHED -j ACCEPT
 }
 
 function disable_icmp () {
@@ -321,10 +323,9 @@ function setup_ipset_rules () {
     print_info "${SCRIPT_NAME}" "Setting up ipset rules" 
     ${IP_SET} -q flush ipsum
     ${IP_SET} -q create ipsum hash:net
-    IPSET_LIST=$(curl --compressed https://raw.githubusercontent.com/stamparm/ipsum/master/ipsum.txt 2>/dev/null | grep -v '#' | grep -v -E "\s[1-2]$" | cut -f 1)
-    for ip in ${IPSET_LIST};
+    for ip in ($(curl --compressed https://raw.githubusercontent.com/stamparm/ipsum/master/ipsum.txt 2>/dev/null | grep -v '#' | grep -v -E "\s[1-2]$" | cut -f 1));
     do
-        ipset add ipsum $ip
+        ipset add ipsum ${ip}
     done
     ${IPTABLES} -I INPUT -m set --match-set ipsum src -j DROP
 }
