@@ -315,7 +315,8 @@ function setup_ipset_rules () {
     print_info "${SCRIPT_NAME}" "Setting up ipset rules" 
     ${IP_SET} -q flush ipsum
     ${IP_SET} -q create ipsum hash:net
-    for ip in ($(curl --compressed https://raw.githubusercontent.com/stamparm/ipsum/master/ipsum.txt 2>/dev/null | grep -v '#' | grep -v -E "\s[1-2]$" | cut -f 1));
+    IP_BLACKLIST="$(curl --compressed https://raw.githubusercontent.com/stamparm/ipsum/master/ipsum.txt 2>/dev/null | grep -v '#' | grep -v -E "\s[1-2]$" | cut -f 1)"
+    for ip in (${IP_BLACKLIST});
     do
         ipset add ipsum ${ip}
     done
