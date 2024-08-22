@@ -12,17 +12,17 @@ TIMESTAMP="$(date +%s)"
 SCRIPT_NAME="iptables"
 
 # Change this to suit your needs
-INTERFACE="eth0"
+INTERFACE="ens33"
 DISABLE_ICMP=1
 ENABLE_TCPSTACK_PROT=1
 ENABLE_TCP_OPT=1
-ENABLE_PORT_KNOCKING=1
+ENABLE_PORT_KNOCKING=0
 LOOK_LIKE_WINDOWS=1
 CONNECTIONS_PER_IP=10
-SSH_PORT=#SSH
-GATE1=#Gate1
-GATE2=#Gate2
-GATE3=#Gate3
+SSH_PORT=22
+#GATE1=#Gate1
+#GATE2=#Gate2
+#GATE3=#Gate3
 ARGUMENTS=$@
 
 MODPROBE="$(which modprobe)"
@@ -99,7 +99,7 @@ fi
 
 function banner () {
     echo -e """${BOLD_WHITE}
-                                                                                                                                                                
+
 @@@@@@@@@@@@@@@@@%#%%@%%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%%@@@@%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 @@@@@@@@@@@@@@%%#**#%%%%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%@@%%@%%@@%@@@@@@@@@@%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 @@@@@@@@@@@@@@%##**######%%%%%%%%%%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%@@@@@%@@%@@@@@@@%@%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -162,7 +162,8 @@ function banner () {
 ###########*#@@%%%%%%%%%@%#**++=--===-+#%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%%%%##***%@%%%%%%%@@%%@@@@@@@@@@@@%@@%@%@@%%
 #***###***#***#%%%%%@@@@@@@%%#*+*#%%@@@@@*+*#%%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%%%%@@@@@@@@@@@@@@@@@@@@@@@@@@@@%@@%##%%@%%%%%%%@%%@@@@@@@@@@@@@@@@@@@@%@@
 ######*#**###**%@%%@@%%%%%@@@%%#%%%%@@@@%+-==+*%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%%%%%%%%@@@@@@@@@@@@@@@@@@@@@@@@@%%%%%%#####*#%%%%#@@%%@%%%%%#%%%%%@@@@@%@@%@%
-%@@%##*###%#***#%%%%@@@@@@@@%@@@@@@@@@%##+++*++#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%%%%%%%%@@@@@@@@@@@@@@@@@@@@@@@@@%@@@%%%%##*#%%%%%%@%%@%%########%%%%%%%@@@@@@                                                                                                                                                                       
+%@@%##*###%#***#%%%%@@@@@@@@%@@@@@@@@@%##+++*++#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%%%%%%%%@@@@@@@@@@@@@@@@@@@@@@@@@%@@@%%%%##*#%%%%%%@%%@%%########%%%%%%%@@@@@@
+
                                                     ,********.********* *****************.********.*********.*\.
                                                     ██╗██████╗ ████████╗ █████╗ ██████╗ ██╗     ███████╗███████╗
                                                     ██║██╔══██╗╚══██╔══╝██╔══██╗██╔══██╗██║     ██╔════╝██╔════╝
@@ -206,9 +207,8 @@ function load_modules () {
     ${DEPMOD} -a
     ${MODPROBE} nf_conntrack
     ${MODPROBE} nf_nat
-    ${MODPROBE} nf_nat_ipv4
     ${MODPROBE} nf_tables
-    ${MODPROBE} nft_chain_nat_ipv4
+    ${MODPROBE} nft_chain_nat
 
     if [[ $(printf '%s\n' "4.9" "${LINUX_VERSION}" | sort -V | head -n1) = "4.9" ]];
     then
@@ -219,13 +219,13 @@ function load_modules () {
 
 function look_like_windows () {
     echo 128 > /proc/sys/net/ipv4/ip_default_ttl
-    echo 1460 > /proc/sys/net/ipv4/default_base_mss
+    echo 1460 > /proc/sys/net/ipv4/tcp_base_mss
     echo 2 > /proc/sys/net/ipv4/tcp_mtu_probing
 }
 
 function look_like_linux () {
     echo 64 > /proc/sys/net/ipv4/ip_default_ttl
-    echo 1024 > /proc/sys/net/ipv4/default_base_mss
+    echo 1024 > /proc/sys/net/ipv4/tcp_base_mss
     echo 0 > /proc/sys/net/ipv4/tcp_mtu_probing
 }
 
@@ -233,7 +233,7 @@ function enable_tcpstack_protections () {
     echo 1 > /proc/sys/net/ipv4/tcp_syncookies
     echo 1 > /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts
     echo 0 > /proc/sys/net/ipv4/conf/all/accept_redirects
-    echo 0 > /proc/sys/net/ipv4/conf/all/accept_source_routes
+    echo 0 > /proc/sys/net/ipv4/conf/all/accept_source_route
     echo 1 > /proc/sys/net/ipv4/conf/all/rp_filter
     echo 1 > /proc/sys/net/ipv4/conf/all/log_martians
     echo 0 > /proc/sys/net/ipv4/conf/all/send_redirects
@@ -247,7 +247,7 @@ function disable_tcpstack_protections () {
     echo 1 > /proc/sys/net/ipv4/tcp_syncookies
     echo 1 > /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts
     echo 1 > /proc/sys/net/ipv4/conf/all/accept_redirects
-    echo 0 > /proc/sys/net/ipv4/conf/all/accept_source_routes
+    echo 0 > /proc/sys/net/ipv4/conf/all/accept_source_route
     echo 0 > /proc/sys/net/ipv4/conf/all/rp_filter
     echo 0 > /proc/sys/net/ipv4/conf/all/log_martians
     echo 1 > /proc/sys/net/ipv4/conf/all/send_redirects
@@ -340,7 +340,7 @@ function block_prerouting () {
     ${IPTABLES} -t mangle -A PREROUTING -s 169.254.0.0/16 -j DROP
     ${IPTABLES} -t mangle -A PREROUTING -s 172.16.0.0/12 -j DROP
     ${IPTABLES} -t mangle -A PREROUTING -s 192.0.2.0/24 -j DROP
-    ${IPTABLES} -t mangle -A PREROUTING -s 192.168.0.0/16 -j DROP 
+    ${IPTABLES} -t mangle -A PREROUTING -s 192.168.0.0/16 -j DROP
     ${IPTABLES} -t mangle -A PREROUTING -s 10.0.0.0/8 -j DROP
     ${IPTABLES} -t mangle -A PREROUTING -s 0.0.0.0/8 -j DROP
     ${IPTABLES} -t mangle -A PREROUTING -s 240.0.0.0/5 -j DROP
@@ -402,13 +402,13 @@ function disable_icmp () {
     if [[ "${1}" == "1" ]];
     then
         print_info "${SCRIPT_NAME}" "[+] Deny icmp requests from outside"
-        ${IPTABLES} -A OUTPUT -p icmp --icmp-type echo-request -j DROP
-        ${IPTABLES} -A INPUT -p icmp --icmp-type echo-reply -j DROP
+        ${IPTABLES} -A OUTPUT -p icmp --icmp-type echo-reply -j DROP
+        ${IPTABLES} -A INPUT -p icmp --icmp-type echo-request -j DROP
     elif [[ "${1}" == "0" ]];
     then
         print_info "${SCRIPT_NAME}" "[+] Allow icmp requests from outside"
-        ${IPTABLES} -A OUTPUT -p icmp --icmp-type echo-request -j ACCEPT
-        ${IPTABLES} -A INPUT -p icmp --icmp-type echo-reply -j ACCEPT
+        ${IPTABLES} -A OUTPUT -p icmp --icmp-type echo-reply -j ACCEPT
+        ${IPTABLES} -A INPUT -p icmp --icmp-type echo-request -j ACCEPT
     fi
 }
 
@@ -426,7 +426,7 @@ function restart_services () {
 }
 
 function setup_ipset_rules () {
-    print_info "${SCRIPT_NAME}" "Setting up ipset rules" 
+    print_info "${SCRIPT_NAME}" "Setting up ipset rules"
     ${IP_SET} -q flush ipsum
     ${IP_SET} -q create ipsum hash:net
     IP_BLACKLIST="$(curl --compressed https://raw.githubusercontent.com/stamparm/ipsum/master/ipsum.txt 2>/dev/null | grep -v '#' | grep -v -E "\s[1-2]$" | cut -f 1)"
@@ -460,7 +460,6 @@ then
 fi
 
 banner
-print_info "${SCRIP_NAME}" "[!] Loading modules"
 load_modules
 if [[ "${ENABLE_TCPSTACK_PROT}" == 1 ]];
 then
@@ -491,28 +490,28 @@ then
     restore_table
     if [[ "${?}" != "0" ]];
     then
-        if [[ ! -z "${IPTABLES_SAVE}" ]];
-        then
-            save_table
-        fi
+        #if [[ ! -z "${IPTABLES_SAVE}" ]];
+        #then
+        #    save_table
+        #fi
         reset_table
-        if [[ "${ENABLE_PORT_KNOCKING}" == 1 ]];
-        then
-            print_info "${SCRIPT_NAME}" "[!] Port knocking enabled"
-            setup_jump_gates
-        fi
-        if [[ ! -z "${IP_SET}" ]];
-        then
-            setup_ipset_rules
-        fi
+        #if [[ "${ENABLE_PORT_KNOCKING}" == 1 ]];
+        #then
+        #    print_info "${SCRIPT_NAME}" "[!] Port knocking enabled"
+        #    setup_jump_gates
+        #fi
+        #if [[ ! -z "${IP_SET}" ]];
+        #then
+        #    setup_ipset_rules
+        #fi
         disable_icmp ${DISABLE_ICMP}
-        block_prerouting
-        limit_connections ${ARGUMENTS}
-        if [[ ! -z "${PSAD}" && ! -z "${FAIL2BAN}" ]];
-        then
-            enable_logging
-        fi
-        allow_connections ${ARGUMENTS}
+        #block_prerouting
+        #limit_connections ${ARGUMENTS}
+        #if [[ ! -z "${PSAD}" && ! -z "${FAIL2BAN}" ]];
+        #then
+        #    enable_logging
+        #fi
+        #allow_connections ${ARGUMENTS}
         if [[ "${ENABLE_PORT_KNOCKING}" == 1 ]];
         then
             jump_gate
@@ -522,12 +521,12 @@ then
             setup_passage
             setup_knocking
         fi
-        default_drop
-        if [[ ! -z "${PSAD}" && ! -z "${FAIL2BAN}" ]];
-        then
-            update_psad_rules
-            restart_services
-        fi
+        #default_drop
+        #if [[ ! -z "${PSAD}" && ! -z "${FAIL2BAN}" ]];
+        #then
+        #    update_psad_rules
+        #    restart_services
+        #fi
         list_rules
     fi
     print_good "${SCRIPT_NAME}" "[+] Finished"
