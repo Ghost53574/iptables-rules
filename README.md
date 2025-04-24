@@ -1,6 +1,10 @@
-# iptables to nftables Converter with Firewalld Integration
+## Iptables, nftables, and firewalld scripts
 
-This project converts iptables firewall rules to nftables syntax and provides integration with firewalld. It preserves all the security features of the original iptables rules while leveraging the improved performance and features of nftables.
+This repository is useful for setting up iptables, nftables, and/or firewalld automatically. This creates Ease of Use (EoU) for mass deployment making sure that your infrastructure stays just that much more secure.
+
+## iptables to nftables Converter with Firewalld Integration
+
+This project has utility to convert iptables firewall rules to nftables syntax and provides integration with firewalld. It preserves all the security features of the original iptables rules while leveraging the improved performance and features of nftables.
 
 ## Overview
 
@@ -9,6 +13,7 @@ The project consists of three main components:
 1. **nftables_converter.py**: Python script that converts iptables rules to nftables format
 2. **firewalld_integration.py**: Python script that integrates the nftables rules with firewalld
 3. **setup_nftables.sh**: Shell script that orchestrates the conversion and integration process
+4. **iptables.sh** Shell script that sets up iptables **only**
 
 ## Features
 
@@ -54,6 +59,7 @@ sudo dnf install nftables firewalld python3-firewall
    chmod +x setup_nftables.sh
    chmod +x nftables_converter.py
    chmod +x firewalld_integration.py
+   chmod +x iptables.sh
    ```
 3. Run the setup script (see Usage section)
 
@@ -61,6 +67,12 @@ sudo dnf install nftables firewalld python3-firewall
 
 ### Basic Usage
 
+For using iptables
+```bash
+sudo ./iptables.sh 22,80,443
+```
+
+For using nftables
 ```bash
 sudo ./setup_nftables.sh --ports 22,80,443 --interface eth0 --apply
 ```
@@ -72,6 +84,7 @@ This will:
 
 ### Options
 
+If using nftables
 ```
 Usage: ./setup_nftables.sh [options]
 
@@ -97,7 +110,7 @@ sudo ./setup_nftables.sh --ports 22,80,443 --enable-port-knocking --apply
 #### Integrate with Firewalld
 
 ```bash
-sudo ./setup_nftables.sh --ports 22,80,443 --firewalld --zone=internal --apply
+sudo ./setup_nftables.sh --ports 22,80,443 --firewalld --zone=internal --apply 
 ```
 
 #### Custom Output File
@@ -197,6 +210,10 @@ nft list ruleset
 firewall-cmd --state
 firewall-cmd --list-all --zone=public
 ```
+
+### Future work
+
+This has been and will be a heavily utilized set of utilities for my own personal use. Eventually integrating XDP, and kernel patching to further modify the TCP/IP stack of Linux to make identification more difficult and therefore attacks more difficult.
 
 ## License
 
