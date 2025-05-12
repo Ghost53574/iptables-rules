@@ -8,42 +8,27 @@
 
 source "./common.sh"
 
+if [ "${EUID}" -ne 0 ]; 
+then
+    echo -e "${RED}ERROR: This script must be run as root${NC}"
+    exit 1
+fi
+
 TIMESTAMP="$(date +%s)"
-SCRIPT_NAME="iptables"
-
-# The interface that you're protecting (WAN)
+SCRIPT_NAME="${BASH_SOURCE[0]}"
 INTERFACE="ens33"
-
-# Disable ICMP?
 DISABLE_ICMP=1
-
-# Only open ports for a specific time during the day?
 ENABLE_SPECIFIC_TIME=0
 DAYS_DURING_WEEK="Mon,Tue,Wed,Thu,Fri"
 START_TIME="$(date -u -d @$(date "+%s" -d "09:00") +%H:%M)"
 END_TIME="$(date -u -d @$(date "+%s" -d "10:00") +%H:%M)"
-
-# Whitelist file of IPs
 WHITELIST_FILE="good_ips.txt"
-
-# Enable TCP stack protections?
 ENABLE_TCPSTACK_PROT=1
-
-# Enable better TCP optimizations?
 ENABLE_TCP_OPT=1
-
-# Look like a windows machine?
 LOOK_LIKE_WINDOWS=1
-
-# How many connections per IP?
 CONNECTIONS_PER_IP=10
-
-# What's the SSH port?
 SSH_PORT=22
-
 ARGUMENTS=$@
-
-# Enables port knocking with configuration
 ENABLE_PORT_KNOCKING=0
 KNOCKING_TIME=10
 GATE1=1025

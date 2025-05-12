@@ -1,15 +1,9 @@
 #!/bin/bash
 
-# Script to convert iptables rules to nftables and integrate with firewalld
-# Author: Cline
-# Date: 2025-04-06
+source "./common.sh"
 
-# Color codes for output formatting
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+TIMESTAMP="$(date +%s)"
+SCRIPT_NAME="${BASH_SOURCE[0]}"
 
 # Default values
 PORTS="22,80,443"
@@ -19,205 +13,309 @@ ENABLE_FIREWALLD=0
 ENABLE_PORT_KNOCKING=0
 APPLY_RULES=0
 FIREWALL_ZONE="public"
+AUTO_INSTALL=0
 
-# Check if running as root
-if [ "$EUID" -ne 0 ]; then
-  echo -e "${RED}ERROR: This script must be run as root${NC}"
-  exit 1
+sudo -l >/dev/null
+
+if [[ $(sudo -l >/dev/null) ]]; 
+then
+    print_error "${SCRIPT_NAME}" "ERROR: This script must be run as with sudo permisssions cached"
+    exit 1
 fi
 
-# Function to display help message
+BANNER="""      
+                              █████████████████████████████████████████████████████████  ████████████████████████████████████                                 
+                              ███  ██  ███    ████     ██   ██  ██    ██      ███     ██████     ███    ███   ██ ██  █      ███                                
+                              ██  ██  ███    ███  ██   █   █  ███  ████   █  ██  ██  █████  ██   ██  █ ███   ██ ███ ███  ████                                 
+                              ██  ██  ██  ██ ███  ██   █   █  ███  ████   █  ███  █████ ██  ██   ██  █  ██    █ ███████  ███                                  
+                              ██      ██  ██  ██  ██████      ███    ██   █ ██████   █████  ███████ ██  ██      ███  ██  ███                                  
+                              ██  ██  ██  ██  ██  ██   █   █  ███  ████   █  ██████   ████  ██   █   █  ██  ██  ███  ██  ███                                  
+                              ██  ██  ██  ██  ██  ██   █   ██  ██  ████   █  ███  █  █████  ██  ██  ██  ██  ██  ███  ██  ███                                  
+                              ████████████████████  █████████████████████████████   ████████  █████████████████████  ███████                                  
+                              ████████████████████████████████████████████████████████    ████████████████████████    █████                                   
+      ████████████████████████████████████████████████████████████████████████████████████ ██████████████████████████████████████████████████████████          
+      ██      ██      ███    ███    ███   █  ██   █   ████  ██  ██  ██  ██   █  ███     ██████    ██  ██      ██     █  ██   ██  ███    ███  ████  ██          
+      ██  ██  ██   ██  ██  █████ █  ███  ██  ██   █   █████  █ ███  ██  ██   █  ███  ██  █████  ████  ██  ██  ██   ████  █   ██  ███ █  ███  ████  ██          
+      ██  ██ ███   █  ███    ██  ██ ███  ██████       ██ ██    ███  ██  ██   █  ███  █  ██████    ██  ██   █  ██     ██  █   ██  ██  ██ ███  ████  ██          
+      ██  ██  ██   ██ ███  ████  ██ ███  ██████   █   ██ ███  ████  ██  ██   █  ███  ██ ██████  ████  ██   █  ██   ████  █ █  █  ██  ██ ███  ████  ██          
+      ██  ██   █   ██  ██  ████      ██  ██  ██   █   ██  ██  ████  ██  ██   █  ███  ██  █████  ████  ██  ██  ██   ████    ██    ██      ██  ████  ████        
+      ██       █   ██  ██    █   ██  ██  ██  ██   █   ██  ██  ████  ██  ███  █  ███  ██  █████  ████  ██  ██  ██     ██    ██   ██   ██  ██    ██    ██        
+      ██████████████████████████████████████████████████  █████████████████████████████████████████████████████████████████████████████████████████████        
+                                        ████                       ████     ███                                                                                
+                                                                                                                                                              
+                                                                                                                                                              
+                                                                                                                                                              
+  ██                                                                                                                                                           
+  ████                                                                                                                                                         
+  █████                                                                                                                                                        
+  █████                                                                                                                                                        
+  ██████                                                                                                                                                       
+  ████████                                                                                                                                                     
+  ████████                   ███████                                                                                                                           
+  ██████████      ██████    █████████                                                                                                                          
+  ███████████    ███████    █████████                                                                                                                          
+  █████████████ ████████    █████████                                                                                                                          
+  ██████████████████████   ███████████                                                                                                                         
+  ████████████████████    ████████████                                                                        ██  █████                                        
+  ███████████████████    ████████████                                                                        ████████████                                      
+  █████████████████████ █████████████                                                                        ██████████████                                    
+  ███████████████████████████████████                                                                        ████████████████                                  
+  ███████████████████████████████████                                                                         ███████████████████                              
+  █████████████████████████████████                                                                          █████████████████████                         ██  
+  █████████████████████████████████                                                                           ████████████████████                      █████  
+  ████████████████████████████████████                                ████████████████                         █████████████████████                █████████  
+  █████████████████████████████████████████                          █████████████████████████████████████████    ███████████████████              ██████████  
+  ██████████████████████████████████████████████                      ████████████████████████████████████████      █████████████████         ███████████████  
+  ███████████████████████████████████████████████████                █████████████████████████████████████████       █████████████████  █████████████████████  
+  ███████████████████████████████████████████████████████          ██████████████████████████████████████████         ███████████████████████████████████████  
+  ███████████████████████████████████████████████████████████    ████████████████████████████████████████████          ██████████████████████████████████████  
+  ████████████████████████████████████████████████████████████████████████████████████████████      █████               █████████████████████████████████████  
+  ██████████████████████████████████████████████████████████████████████████████████████████                             ████████████████████████████████████  
+  ██████████████████████████████████████████████████████████████████████████████████ ███████                               ██████████████████████████████████  
+  █████████████████████████████████████████████████████████████████████████████████████████                                   ███████████████████████████████  
+  █████████████   ███████████████████████████████████████████████████████████████████                                                ███████████████████       
+  ████████████       ███████████████████████████████████████████████████████████████                                                   █████████               
+  ███████████            ███████████████████████████████████████████████████████████                                                                           
+  ████████                  ███████████████████████████████████████████████████████                                                                            
+  █████                           █████████████████████████████████████████████████                                                                            
+                                        ██████████████████      █  ███████████████                                                                             
+                                              ███████                        █                                                                                
+                                                                                                                                                              
+                                                                                                                                                                  
+                                                                            Just say no...${NC}
+"""
+
+echo -e "${BANNER}"
+
 show_help() {
-  echo -e "${BLUE}Convert iptables rules to nftables and integrate with firewalld${NC}"
-  echo ""
-  echo "Usage: $0 [options]"
-  echo ""
-  echo "Options:"
-  echo "  -p, --ports PORTS          Comma-separated list of ports to allow (default: $PORTS)"
-  echo "  -i, --interface INTERFACE  Network interface to protect (default: $INTERFACE)"
-  echo "  -o, --output FILE          Output file for nftables rules (default: $OUTPUT_FILE)"
-  echo "  -f, --firewalld            Enable firewalld integration"
-  echo "  -k, --port-knocking        Enable port knocking"
-  echo "  -a, --apply                Apply the ruleset immediately"
-  echo "  -z, --zone ZONE            Firewalld zone to use (default: $FIREWALL_ZONE)"
-  echo "  -h, --help                 Show this help message"
-  echo ""
-  echo "Example:"
-  echo "  $0 --ports 22,80,443 --interface eth0 --firewalld --apply"
-  echo ""
+    print_menu "${SCRIPT_NAME}" "Convert iptables rules to nftables and integrate with firewalld${NC}"
+    print_menu "${SCRIPT_NAME}" ""
+    print_menu "${SCRIPT_NAME}" "Usage: $0 [options]"
+    print_menu "${SCRIPT_NAME}" "Options:"
+    print_menu "${SCRIPT_NAME}" "    -p, --ports PORTS                    Comma-separated list of ports to allow (default: $PORTS)"
+    print_menu "${SCRIPT_NAME}" "    -i, --interface INTERFACE            Network interface to protect (default: $INTERFACE)"
+    print_menu "${SCRIPT_NAME}" "    -o, --output FILE                    Output file for nftables rules (default: $OUTPUT_FILE)"
+    print_menu "${SCRIPT_NAME}" "    -f, --firewalld                      Enable firewalld integration"
+    print_menu "${SCRIPT_NAME}" "    -k, --port-knocking                  Enable port knocking"
+    print_menu "${SCRIPT_NAME}" "    -a, --apply                          Apply the ruleset immediately"
+    print_menu "${SCRIPT_NAME}" "    -z, --zone ZONE                      Firewalld zone to use (default: $FIREWALL_ZONE)"
+    print_menu "${SCRIPT_NAME}" "    -A, --auto-install                   Auto install missing packages"
+    print_menu "${SCRIPT_NAME}" "    -h, --help                           Show this help message"
+    print_menu "${SCRIPT_NAME}" ""
+    print_menu "${SCRIPT_NAME}" "Example:"
+    print_menu "${SCRIPT_NAME}" "       ${SCRIPT_NAME} --ports 22,80,443 --interface eth0 --firewalld --apply"
+    print_menu "${SCRIPT_NAME}" ""
 }
 
-# Parse command line arguments
-while [[ $# -gt 0 ]]; do
-  case $1 in
-    -p|--ports)
-      PORTS="$2"
-      shift 2
-      ;;
-    -i|--interface)
-      INTERFACE="$2"
-      shift 2
-      ;;
-    -o|--output)
-      OUTPUT_FILE="$2"
-      shift 2
-      ;;
-    -f|--firewalld)
-      ENABLE_FIREWALLD=1
-      shift
-      ;;
-    -k|--port-knocking)
-      ENABLE_PORT_KNOCKING=1
-      shift
-      ;;
-    -a|--apply)
-      APPLY_RULES=1
-      shift
-      ;;
-    -z|--zone)
-      FIREWALL_ZONE="$2"
-      shift 2
-      ;;
-    -h|--help)
-      show_help
-      exit 0
-      ;;
-    *)
-      echo -e "${RED}ERROR: Unknown option: $1${NC}"
-      show_help
-      exit 1
-      ;;
-  esac
+while [[ ${#} -gt 0 ]]; 
+do
+    case $1 in
+        -p|--ports)
+            PORTS="$2"
+            shift 2
+            ;;
+        -i|--interface)
+            INTERFACE="$2"
+            shift 2
+            ;;
+        -o|--output)
+            OUTPUT_FILE="$2"
+            shift 2
+            ;;
+        -f|--firewalld)
+            ENABLE_FIREWALLD=1
+            shift
+            ;;
+        -k|--port-knocking)
+            ENABLE_PORT_KNOCKING=1
+            shift
+            ;;
+        -a|--apply)
+            APPLY_RULES=1
+            shift
+            ;;
+        -z|--zone)
+            FIREWALL_ZONE="$2"
+            shift 2
+            ;;
+        -A| --auto-install)
+            AUTO_INSTALL=1
+            shift
+            ;;
+        -h|--help)
+            show_help
+            exit 0
+            ;;
+        *)
+            print_error "${SCRIPT_NAME}" "ERROR: Unknown option: ${1}"
+            show_help
+            exit 1
+            ;;
+    esac
 done
-
-# Check for required dependencies
-echo -e "${BLUE}Checking dependencies...${NC}"
-MISSING_DEPS=0
 
 check_dependency() {
-  if ! command -v $1 &> /dev/null; then
-    echo -e "${YELLOW}WARNING: $1 not found.${NC}"
-    return 1
-  else
-    echo -e "${GREEN}Found $1: $(which $1)${NC}"
-    return 0
-  fi
+    if ! command -v $1 &> /dev/null; 
+    then
+        print_warning "${SCRIPT_NAME}" "WARNING: ${1} not found."
+        return 1
+    else
+        print_info "${SCRIPT_NAME}" "Found $1: $(which $1)"
+        return 0
+    fi
 }
 
-# Check for Python
-if ! check_dependency python3; then
-  echo -e "${RED}ERROR: Python 3 is required for this script.${NC}"
-  exit 1
-fi
+print_menu "${SCRIPT_NAME}" "Checking packages dependencies..."
+PKG_DEPENDS=("python3" "firewall-cmd" "nft" "python3-firewall" "python3-dbus" "python3-nftables" "ebtables" "ipset" "python3-cap-ng" "firewalld" )
 
-# Check for nftables
-check_dependency nft
-NFT_MISSING=$?
-
-# Check for firewalld if integration is enabled
-if [ $ENABLE_FIREWALLD -eq 1 ]; then
-  check_dependency firewall-cmd
-  FIREWALLD_MISSING=$?
-  
-  if [ $FIREWALLD_MISSING -eq 1 ]; then
-    echo -e "${RED}ERROR: firewalld is required when --firewalld is specified.${NC}"
-    exit 1
-  fi
-fi
-
-# Warn if nftables is missing but don't exit
-if [ $NFT_MISSING -eq 1 ]; then
-  echo -e "${YELLOW}WARNING: nftables (nft) is required to apply rules.${NC}"
-  echo -e "${YELLOW}The script will generate the rules, but you'll need to install nftables to apply them.${NC}"
-fi
-
-# Check for Python dependencies
-echo -e "${BLUE}Checking Python dependencies...${NC}"
-PYTHON_DEPS=("argparse" "logging" "subprocess" "os" "sys" "json" "re" "datetime")
-
-# Check for firewalld Python API if firewalld integration is enabled
-if [ $ENABLE_FIREWALLD -eq 1 ]; then
-  echo -e "${BLUE}Checking for firewalld Python API...${NC}"
-  if ! python3 -c "import firewall.config" &> /dev/null; then
-    echo -e "${RED}ERROR: firewalld Python API not found. Please install the python3-firewall package.${NC}"
-    echo -e "${YELLOW}For Debian/Ubuntu: sudo apt-get install python3-firewall${NC}"
-    echo -e "${YELLOW}For RHEL/CentOS/Fedora: sudo dnf install python3-firewall${NC}"
-    exit 1
-  else
-    echo -e "${GREEN}Found firewalld Python API${NC}"
-  fi
-fi
-
-for dep in "${PYTHON_DEPS[@]}"; do
-  if ! python3 -c "import $dep" &> /dev/null; then
-    echo -e "${YELLOW}WARNING: Python module '$dep' not found.${NC}"
-    MISSING_DEPS=1
-  fi
+for PKG in ${PKG_DEPENDS[@]};
+do
+    case ${PKG} in
+        python3)
+        if ! check_dependency python3; 
+        then
+            if [[ ${AUTO_INSTALL} ]];
+            then
+                print_info "${SCRIPT_NAME}" "Installing python3..."
+                apt-get install python3 -y
+            else
+                print_error "${SCRIPT_NAME}" "ERROR: Python 3 is required for this script."
+                exit 1
+            fi
+        fi
+        ;;
+        firewall-cmd)
+        if [[ ${ENABLE_FIREWALLD} ]]; 
+        then
+            if ! check_dependency firewall-cmd; 
+            then
+                if [[ ${AUTO_INSTALL} ]];
+                then
+                    print_info "${SCRIPT_NAME}" "Installing firewalld..."
+                    apt-get install firewalld -y
+                else
+                    print_error "${SCRIPT_NAME}" "ERROR: firewalld is required when --firewalld is specified."
+                    exit 1
+                fi
+            fi
+        fi
+        ;;
+        nft)
+        if ! check_dependency nft; 
+        then
+            if [[ ${AUTO_INSTALL} ]];
+            then
+                print_info "${SCRIPT_NAME}" "Installing nftables..."
+                apt-get install nftables -y
+            else
+                print_warning "${SCRIPT_NAME}" "WARNING: nftables (nft) is required to apply rules."
+                print_warning "${SCRIPT_NAME}" "The script will generate the rules, but you'll need to install nftables to apply them."
+            fi
+        fi
+        ;;
+        *)
+        if ! check_dependency ${PKG};
+        then
+            if [[ ${AUTO_INSTALL} ]];
+            then
+                print_info "${SCRIPT_NAME}" "Installing ${PKG}..."
+                apt-get install ${PKG} -y
+            else
+                print_error "${SCRIPT_NAME}" "ERROR: ${PKG} is required. Please install it with apt..."
+                exit 1
+            fi
+        fi
+        ;;
+    esac
 done
 
-if [ $MISSING_DEPS -eq 1 ]; then
-  echo -e "${YELLOW}Some Python dependencies are missing. Try installing them:${NC}"
-  echo -e "${YELLOW}python3 -m pip install argparse datetime${NC}"
-  # We'll proceed anyway since most are standard library modules
+print_menu "${SCRIPT_NAME}" "Checking Python dependencies..."
+PYTHON_DEPS=("gobjects" "")
+
+if [[ ! ${ENABLE_FIREWALLD} ]]; 
+then
+    print_menu "${SCRIPT_NAME}" "Checking for firewalld Python package..."
+    if ! python3 -c "import firewall.config" &> /dev/null; 
+    then
+        print_error "${SCRIPT_NAME}" "ERROR: firewalld Python package not found. Please install the python3-firewall package."
+        print_warning "${SCRIPT_NAME}" "For Debian/Ubuntu: sudo apt-get install python3-firewall"
+        print_warning "${SCRIPT_NAME}" "For RHEL/CentOS/Fedora: sudo dnf install python3-firewall"
+        exit 1
+    else
+        print_info "${SCRIPT_NAME}" "Found firewalld Python package"
+    fi
 fi
 
-# Ensure scripts are executable
-chmod +x nftables_converter.py
-chmod +x firewalld_integration.py
+for dep in "${PYTHON_DEPS[@]}"; 
+do
+    if ! python3 -c "import ${dep}" &> /dev/null; 
+    then
+        print_warning "${SCRIPT_NAME}" "WARNING: Python module '${dep}' not found."
+    fi
+    if [[ ${AUTO_INSTALL} ]];
+    then
+        print_info "${SCRIPT_NAME}" "Installing pypi package ${dep}"
+        python3 -m pip install -U ${dep} --user --break-system-packages
+    fi
+done
 
-# Prepare command arguments
-CONVERTER_ARGS="--ports $PORTS --interface $INTERFACE --output $OUTPUT_FILE"
-
-if [ $ENABLE_PORT_KNOCKING -eq 1 ]; then
-  CONVERTER_ARGS="$CONVERTER_ARGS --enable-port-knocking 1"
+if [[ ! -x "nftables_converter.py" ]];
+then
+    chmod +x nftables_converter.py
+fi
+if [[ ! -x "nftables_converter.py" ]];
+then
+    chmod +x firewalld_integration.py
 fi
 
-if [ $APPLY_RULES -eq 1 ]; then
-  CONVERTER_ARGS="$CONVERTER_ARGS --apply"
+CONVERTER_ARGS="--ports ${PORTS} --interface ${INTERFACE} --output ${OUTPUT_FILE}"
+
+if [[ ! ${ENABLE_PORT_KNOCKING} ]]; 
+then
+    print_info "${SCRIPT_NAME}" "Enabling port kocking..."
+    CONVERTER_ARGS="${CONVERTER_ARGS} --enable-port-knocking 1"
 fi
 
-# Run the nftables converter
-echo -e "${BLUE}Converting iptables rules to nftables...${NC}"
-python3 nftables_converter.py $CONVERTER_ARGS
-
-# Check if conversion was successful
-if [ $? -ne 0 ]; then
-  echo -e "${RED}ERROR: Failed to convert iptables rules to nftables.${NC}"
-  exit 1
+if [[ ! ${APPLY_RULES} ]]; 
+then
+    print_info "${SCRIPT_NAME}" "Applying rules after creation..."
+    CONVERTER_ARGS="${CONVERTER_ARGS} --apply"
 fi
 
-echo -e "${GREEN}Successfully converted iptables rules to nftables.${NC}"
-
-# Integrate with firewalld if requested
-if [ $ENABLE_FIREWALLD -eq 1 ]; then
-  echo -e "${BLUE}Integrating with firewalld...${NC}"
-  
-  FIREWALLD_ARGS="--nftables-file $OUTPUT_FILE --ports $PORTS --zone $FIREWALL_ZONE"
-  
-  python3 firewalld_integration.py $FIREWALLD_ARGS
-  
-  if [ $? -ne 0 ]; then
-    echo -e "${RED}ERROR: Failed to integrate with firewalld.${NC}"
+print_menu "${SCRIPT_NAME}" "Converting iptables rules to nftables..."
+if [[ $(python3 nftables_converter.py ${CONVERTER_ARGS}) -ne 0 ]]; 
+then
+    print_error "${SCRIPT_NAME}" "ERROR: Failed to convert iptables rules to nftables."
     exit 1
-  fi
-  
-  echo -e "${GREEN}Successfully integrated with firewalld.${NC}"
 fi
 
-echo -e "${GREEN}All done!${NC}"
+print_info "${SCRIPT_NAME}" "Successfully converted iptables rules to nftables."
 
-# Print next steps
-echo -e "${BLUE}Next steps:${NC}"
-echo -e "1. Review the generated nftables ruleset in $OUTPUT_FILE"
+if [[ ${ENABLE_FIREWALLD} -eq 1 ]]; 
+then
+    print_menu "${SCRIPT_NAME}" "Integrating with firewalld..."
+    if [[ $(python3 firewalld_integration.py "--nftables-file ${OUTPUT_FILE} --ports ${PORTS} --zone ${FIREWALL_ZONE}") -ne 0 ]]; 
+    then
+        print_error "${SCRIPT_NAME}" "ERROR: Failed to integrate with firewalld."
+        exit 1
+    fi
+    print_info "${SCRIPT_NAME}" "Successfully integrated with firewalld."
+fi
 
-if [ $APPLY_RULES -eq 1 ]; then
-  echo -e "2. The rules have been applied. To verify, run: ${YELLOW}nft list ruleset${NC}"
+print_info "${SCRIPT_NAME}" "All done!"
+print_menu "${SCRIPT_NAME}" "Next steps:"
+print_menu "${SCRIPT_NAME}" "1. Review the generated nftables ruleset in ${OUTPUT_FILE}"
+
+if [[ ${APPLY_RULES} -eq 1 ]]; 
+then
+    print_menu "${SCRIPT_NAME}" "2. The rules have been applied. To verify, run: ${YELLOW}nft list ruleset"
 else
-  echo -e "2. To apply the rules, run: ${YELLOW}nft -f $OUTPUT_FILE${NC}"
+    print_menu "${SCRIPT_NAME}" "2. To apply the rules, run: ${YELLOW}nft -f ${OUTPUT_FILE}"
 fi
 
-if [ $ENABLE_FIREWALLD -eq 1 ]; then
-  echo -e "3. To check firewalld configuration, run: ${YELLOW}firewall-cmd --list-all --zone=$FIREWALL_ZONE${NC}"
+if [[ ${ENABLE_FIREWALLD} -eq 1 ]]; 
+then
+     print_menu "${SCRIPT_NAME}" "3. To check firewalld configuration, run: ${YELLOW}firewall-cmd --list-all --zone=${FIREWALL_ZONE}"
 fi
 
 exit 0
