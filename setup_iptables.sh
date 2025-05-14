@@ -8,14 +8,17 @@
 
 source "./common.sh"
 
-if [ "${EUID}" -ne 0 ]; 
+TIMESTAMP="$(date +%s)"
+SCRIPT_NAME="${BASH_SOURCE[0]}"
+
+if [[ ${EUID} != 0 ]]; 
 then
-    echo -e "${RED}ERROR: This script must be run as root${NC}"
+    print_error "${SCRIPT_NAME}" "ERROR: This script must be run root permisssions"
     exit 1
 fi
 
-TIMESTAMP="$(date +%s)"
-SCRIPT_NAME="${BASH_SOURCE[0]}"
+# Default values
+PORTS="22"
 INTERFACE="ens33"
 DISABLE_ICMP=1
 ENABLE_SPECIFIC_TIME=0
@@ -167,6 +170,110 @@ function banner () {
                 those who would attempt to poison and destroy my brothers.\" - A badass motherfucker
 ${NC}"""
 }
+
+show_help() {
+    print_menu "${SCRIPT_NAME}" "Convert iptables rules to nftables and integrate with firewalld${NC}"
+    print_menu "${SCRIPT_NAME}" ""
+    print_menu "${SCRIPT_NAME}" "Usage: ${SCRIPT_NAME} [options]"
+    print_menu "${SCRIPT_NAME}" "Options:"
+    print_menu "${SCRIPT_NAME}" "    -p, --ports ${PORTS}                 Comma-separated list of ports to allow (default: ${PORTS})"
+    print_menu "${SCRIPT_NAME}" "    -i, --interface ${INTERFACE}         Network interface to protect (default: ${INTERFACE})"
+    print_menu "${SCRIPT_NAME}" "    -c, --connections ${CONNECTIONS}     Number of connections per IP"
+    print_menu "${SCRIPT_NAME}" "    -s, --ssh ${SSH_PORT}                Default SSH port"
+    print_menu "${SCRIPT_NAME}" "    --disable-icmp                       Disable icmp request / reply"
+    print_menu "${SCRIPT_NAME}" "    --enable-stack-prot                  Enable TCP stack protections"
+    print_menu "${SCRIPT_NAME}" "    --enable-stack-opt                   Enable TCP stack optimizations"
+    print_menu "${SCRIPT_NAME}" "    --enable-port-knocking               Enable port knocking"
+    print_menu "${SCRIPT_NAME}" "    -k, --knocking-time ${KNOCKING_TIME} Port knocking duration"
+    print_menu "${SCRIPT_NAME}" "    -m, --masquerade                     Masquerade as Windows"
+    print_menu "${SCRIPT_NAME}" "    -d, --days-week ${DAYS_DURING_WEEK}  The days during the week"
+    print_menu "${SCRIPT_NAME}" "    -S, --start-time ${START_TIME}       Start time in 24 hour format"
+    print_menu "${SCRIPT_NAME}" "    -E, --end-time ${END_TIME}           End time in 24 hour format"
+    print_menu "${SCRIPT_NAME}" "    -w, --whitelist ${WHITELIST_FILE}    Whitelist file with good ips"
+    print_menu "${SCRIPT_NAME}" "    -A, --auto-install                   Auto install missing packages"
+    print_menu "${SCRIPT_NAME}" "    -h, --help                           Show this help message"
+    print_menu "${SCRIPT_NAME}" ""
+    print_menu "${SCRIPT_NAME}" "Example:"
+    print_menu "${SCRIPT_NAME}" "       ${SCRIPT_NAME} --ports 22,80,443 --interface eth0"
+    print_menu "${SCRIPT_NAME}" ""
+}
+
+while [[ ${#} -gt 0 ]]; 
+do
+    case $1 in
+        -p|--ports)
+            PORTS="$2"
+            shift 2
+            ;;
+        -i|--interface)
+            INTERFACE="$2"
+            shift 2
+            ;;
+        -c|--connections)
+            CONNECTIONS_PER_IP="$2"
+            shift 2
+            ;;
+        -s|--ssh)
+            SSH_PORT="$2"
+            shift 2
+            ;;
+        --disable-icmp)
+            DISABLE_ICMP=1
+            shift
+            ;;
+        --enable-stack-prot)
+            ENABLE_TCPSTACK_PROT=1
+            shift
+            ;;
+        --enable-stack-opt)
+            ENABLE_TCP_OPT=1
+            shift
+            ;;
+        --enable-port-knocking)
+            ENABLE_PORT_KNOCKING=1
+            shift
+            ;;
+        -k|--knocking-time)
+            KNOCKING_TIME="$2"
+            shift 2
+            ;;
+        -m|--masquerade)
+            LOOK_LIKE_WINDOWS=1
+            shift
+            ;;
+        -d|--days-week)
+            DAYS_DURING_WEEK="$2"
+            shift 2
+            ;;
+        -S|--start-time)
+            START_TIME="$2"
+            ENABLE_SPECIFIC_TIME=1
+            shift 2
+            ;;
+        -E|--end-time)
+            END_TIME="$2"
+            ENABLE_SPECIFIC_TIME=1
+            shift 2
+            ;;
+        -w|--whitelist)
+            WHITELIST_FILE="$2"
+            shift 2
+            ;;
+        -A| --auto-install)
+            AUTO_INSTALL=1
+            shift
+            ;;
+        -h|--help)
+            show_help
+            exit 0
+            ;;
+        *)
+            print_error "${SCRIPT_NAME}" "ERROR: Unknown option: ${1}"
+            show_help
+            exit 1
+            ;;
+    esac
+done
 
 function update_psad_rules () {
     ${PSAD} --sig-update

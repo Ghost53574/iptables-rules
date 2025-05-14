@@ -1,14 +1,12 @@
 #!/bin/bash
 
-source "./helper_funcs.sh"
-
+source "./common.sh"
 NMAP="$(which nmap)"
-TARGET="#target"
-PORTS=(#ports)
+TARGET="12.23.45.67"
+PORTS=(1025 1026 1027)
 for PORT in ${PORTS[@]};
 do
-    print_info "port knocking" "Knocking on ${PORT}"
+    print_info "${BASH_SOURCE[0]}" "Knocking on ${PORT}"
     ${NMAP} -Pn --host-timeout 201 --max-retries 0 -p ${PORT} ${TARGET} >/dev/null
     sleep 1
 done
-ssh -i ~/Documents/s1_rsa -p #SSH root@c0z.red

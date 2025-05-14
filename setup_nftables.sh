@@ -15,8 +15,6 @@ APPLY_RULES=0
 FIREWALL_ZONE="public"
 AUTO_INSTALL=0
 
-sudo -l >/dev/null
-
 if [[ $(sudo -l >/dev/null) ]]; 
 then
     print_error "${SCRIPT_NAME}" "ERROR: This script must be run as with sudo permisssions cached"
