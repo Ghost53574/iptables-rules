@@ -166,12 +166,12 @@ check_dependency() {
 print_menu "${SCRIPT_NAME}" "Checking packages dependencies..."
 
 # Base dependencies that are always required
-PKG_DEPENDS=("python3" "nft" "python3-nftables" "ebtables" "ipset")
+PKG_DEPENDS=("python3" "nft" "ebtables" "ipset")
 
 # Add firewalld-related dependencies only if firewalld integration is enabled
 if [[ ${ENABLE_FIREWALLD} -eq 1 ]];
 then
-    PKG_DEPENDS+=("firewall-cmd" "python3-firewall" "python3-dbus" "python3-cap-ng" "firewalld")
+    PKG_DEPENDS+=("firewall-cmd" "python3-firewall" "python3-nftables" "python3-dbus" "python3-cap-ng" "firewalld")
 fi
 
 for PKG in ${PKG_DEPENDS[@]};

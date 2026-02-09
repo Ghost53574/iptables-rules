@@ -916,19 +916,22 @@ class NftablesConverter:
             logger.error(f"Ruleset file {file_path} not found")
             return False
             
-        if not self.load_ip_blacklist():
-            logger.warning("Blacklist wasn't loaded into nftables")
-            
+        # First apply the ruleset to create tables, chains, and sets
         try:
             if self.cmd_nft:
                 subprocess.run([self.cmd_nft, "-f", file_path], check=True)
                 logger.info("Ruleset applied successfully")
-                return True
             else:
-                raise Exception()
+                raise Exception("nft command not found")
         except subprocess.CalledProcessError as e:
             logger.error(f"Failed to apply ruleset: {e}")
             return False
+        
+        # Now load the IP blacklist into the ipsum set (set exists after ruleset is applied)
+        if not self.load_ip_blacklist():
+            logger.warning("Blacklist wasn't loaded into nftables")
+            
+        return True
             
     def load_ip_blacklist(self) -> bool:
         """Load IP blacklist from the internet"""
