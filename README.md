@@ -35,20 +35,33 @@ The project consists of three main components:
 
 - Python 3.6+
 - nftables
-- firewalld (for firewalld integration)
-- python3-firewall package (for the firewalld Python API)
 - Root privileges (to apply rules)
+
+### Optional (only needed with `--firewalld` flag)
+
+- firewalld
+- python3-firewall package (for the firewalld Python API)
+
+> **Note:** On VPS boxes using cloud-init, the `firewalld` package often conflicts with `cloud-init`. The nftables script works perfectly without firewalld — just omit the `--firewalld` flag.
 
 ### Installing Dependencies
 
 For Debian/Ubuntu:
 ```bash
-sudo apt-get install nftables firewalld python3-firewall
+# Core dependencies (always required)
+sudo apt-get install nftables python3
+
+# Optional: only if using --firewalld integration
+sudo apt-get install firewalld python3-firewall
 ```
 
 For RHEL/CentOS/Fedora:
 ```bash
-sudo dnf install nftables firewalld python3-firewall
+# Core dependencies (always required)
+sudo dnf install nftables python3
+
+# Optional: only if using --firewalld integration
+sudo dnf install firewalld python3-firewall
 ```
 
 ## Installation

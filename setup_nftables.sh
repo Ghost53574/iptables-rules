@@ -164,7 +164,15 @@ check_dependency() {
 }
 
 print_menu "${SCRIPT_NAME}" "Checking packages dependencies..."
-PKG_DEPENDS=("python3" "firewall-cmd" "nft" "python3-firewall" "python3-dbus" "python3-nftables" "ebtables" "ipset" "python3-cap-ng" "firewalld" )
+
+# Base dependencies that are always required
+PKG_DEPENDS=("python3" "nft" "python3-nftables" "ebtables" "ipset")
+
+# Add firewalld-related dependencies only if firewalld integration is enabled
+if [[ ${ENABLE_FIREWALLD} -eq 1 ]];
+then
+    PKG_DEPENDS+=("firewall-cmd" "python3-firewall" "python3-dbus" "python3-cap-ng" "firewalld")
+fi
 
 for PKG in ${PKG_DEPENDS[@]};
 do
@@ -172,7 +180,7 @@ do
         python3)
         if ! check_dependency python3; 
         then
-            if [[ ${AUTO_INSTALL} ]];
+            if [[ ${AUTO_INSTALL} -eq 1 ]];
             then
                 print_info "${SCRIPT_NAME}" "Installing python3..."
                 apt-get install python3 -y
@@ -183,11 +191,11 @@ do
         fi
         ;;
         firewall-cmd)
-        if [[ ${ENABLE_FIREWALLD} ]]; 
+        if [[ ${ENABLE_FIREWALLD} -eq 1 ]]; 
         then
             if ! check_dependency firewall-cmd; 
             then
-                if [[ ${AUTO_INSTALL} ]];
+                if [[ ${AUTO_INSTALL} -eq 1 ]];
                 then
                     print_info "${SCRIPT_NAME}" "Installing firewalld..."
                     apt-get install firewalld -y
@@ -201,7 +209,7 @@ do
         nft)
         if ! check_dependency nft; 
         then
-            if [[ ${AUTO_INSTALL} ]];
+            if [[ ${AUTO_INSTALL} -eq 1 ]];
             then
                 print_info "${SCRIPT_NAME}" "Installing nftables..."
                 apt-get install nftables -y
@@ -214,7 +222,7 @@ do
         *)
         if ! check_dependency ${PKG};
         then
-            if [[ ${AUTO_INSTALL} ]];
+            if [[ ${AUTO_INSTALL} -eq 1 ]];
             then
                 print_info "${SCRIPT_NAME}" "Installing ${PKG}..."
                 apt-get install ${PKG} -y
@@ -230,7 +238,7 @@ done
 print_menu "${SCRIPT_NAME}" "Checking Python dependencies..."
 PYTHON_DEPS=("gobjects" "")
 
-if [[ ! ${ENABLE_FIREWALLD} ]]; 
+if [[ ${ENABLE_FIREWALLD} -eq 1 ]]; 
 then
     print_menu "${SCRIPT_NAME}" "Checking for firewalld Python package..."
     if ! python3 -c "import firewall.config" &> /dev/null; 
@@ -250,7 +258,7 @@ do
     then
         print_warning "${SCRIPT_NAME}" "WARNING: Python module '${dep}' not found."
     fi
-    if [[ ${AUTO_INSTALL} ]];
+    if [[ ${AUTO_INSTALL} -eq 1 ]];
     then
         print_info "${SCRIPT_NAME}" "Installing pypi package ${dep}"
         python3 -m pip install -U ${dep} --user --break-system-packages
@@ -268,13 +276,13 @@ fi
 
 CONVERTER_ARGS="--ports ${PORTS} --interface ${INTERFACE} --output ${OUTPUT_FILE}"
 
-if [[ ! ${ENABLE_PORT_KNOCKING} ]]; 
+if [[ ${ENABLE_PORT_KNOCKING} -eq 1 ]]; 
 then
-    print_info "${SCRIPT_NAME}" "Enabling port kocking..."
+    print_info "${SCRIPT_NAME}" "Enabling port knocking..."
     CONVERTER_ARGS="${CONVERTER_ARGS} --enable-port-knocking 1"
 fi
 
-if [[ ! ${APPLY_RULES} ]]; 
+if [[ ${APPLY_RULES} -eq 1 ]]; 
 then
     print_info "${SCRIPT_NAME}" "Applying rules after creation..."
     CONVERTER_ARGS="${CONVERTER_ARGS} --apply"
